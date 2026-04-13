@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Medicine Hub | Admin: Ayushi Sharma</title>
+    <style>
+        :root {
+            --bg-color: #0d0d0f;
+            --panel-bg: rgba(20, 20, 25, 0.8);
+            --key-border: rgba(255, 255, 255, 0.12);
+            --backlight: rgba(255, 255, 255, 0.08);
+            --accent: #00ffcc;
+            --danger: #ff3b3b;
+            --success: #00ff66;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% -20%, #1e1e2e 0%, #0d0d0f 80%);
+            color: #f5f5f7;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+            margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Navigation Bar */
+        nav {
+            width: 100%; background: rgba(13, 13, 15, 0.85); backdrop-filter: blur(25px);
+            padding: 20px 0; display: flex; justify-content: center; gap: 35px;
+            border-bottom: 1px solid var(--key-border); position: sticky; top: 0; z-index: 1000;
+        }
+
+        nav a {
+            color: #86868b; text-decoration: none; font-size: 12px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; cursor: pointer;
+        }
+
+        nav a:hover { color: #fff; }
+
+        .container { display: none; width: 95%; max-width: 1050px; padding: 40px 0; flex-direction: column; }
+        .active-view { display: flex; animation: slideUp 0.5s cubic-bezier(0.23, 1, 0.32, 1); }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Dashboard Hardware Layout */
+        .hub-display {
+            background: var(--panel-bg); backdrop-filter: blur(30px);
+            border-radius: 28px; padding: 40px; margin-bottom: 30px;
+            border: 1px solid var(--key-border); box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+        }
+
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; }
+
+        .section {
+            background: #1a1a1e; border: 0.5px solid var(--key-border);
+            box-shadow: 0 0 15px var(--backlight), inset 0 1px 1px rgba(255,255,255,0.05);
+            border-radius: 14px; padding: 25px; text-align: center; transition: 0.3s;
+        }
+
+        .section:hover { border-color: rgba(255, 255, 255, 0.3); transform: translateY(-2px); }
+
+        .led { width: 10px; height: 10px; border-radius: 50%; margin: 0 auto 12px; }
+        .led-green { background: var(--success); box-shadow: 0 0 15px var(--success), 0 0 3px #fff; }
+        .led-red { background: var(--danger); box-shadow: 0 0 15px var(--danger), 0 0 3px #fff; }
+
+        /* Panels & Forms */
+        .panel { 
+            background: var(--panel-bg); backdrop-filter: blur(20px);
+            border: 1px solid var(--key-border); padding: 30px; border-radius: 24px;
+            margin-bottom: 25px;
+        }
+
+        .ui-row { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+
+        h3 { margin-top: 0; color: var(--accent); font-size: 18px; font-weight: 600; }
+
+        input, select, button, textarea { 
+            width: 100%; padding: 14px; margin-top: 12px; border-radius: 10px; border: 1px solid #333;
+            background: rgba(0,0,0,0.5); color: #fff; font-size: 14px; outline: none; transition: 0.2s;
+        }
+
+        button { background: #fff; color: #000; font-weight: 600; cursor: pointer; border: none; }
+        button:hover { background: var(--accent); transform: scale(1.02); }
+
+        /* History & Data */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { text-align: left; padding: 15px; border-bottom: 1px solid var(--key-border); font-size: 13px; }
+        .log-taken { color: var(--success); font-weight: bold; }
+        .log-skipped { color: var(--danger); font-weight: bold; }
+
+        /* Alarm Notification Overlay */
+        #alarmBanner {
+            display: none; width: 100%; background: var(--danger); color: white; text-align: center;
+            padding: 20px; font-weight: 600; position: fixed; top: 0; left: 0; z-index: 2000;
+            box-shadow: 0 10px 40px rgba(255, 59, 59, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+<div id="alarmBanner">
+    🔔 MEDICINE REMINDER ACTIVE (Beethoven: Für Elise playing...) 
+    <button onclick="medicationEvent('Taken')" style="width:auto; margin-left:20px; padding:8px 25px; border-radius:20px; background:#fff;">I'VE TAKEN IT</button>
+    <button onclick="medicationEvent('Skipped')" style="width:auto; margin-left:10px; padding:8px 25px; border-radius:20px; background:#222; color:#fff;">SKIP DOSE</button>
+</div>
+
+<form id="notifyForm" action="https://formspree.io/f/PASTE_YOUR_ID_HERE" method="POST" target="hidden_iframe" style="display:none;">
+    <input type="hidden" name="_subject" value="URGENT: Smart MedBox Update">
+    <input type="hidden" name="Action" id="hiddenAction">
+    <input type="hidden" name="Family_Phone" id="hiddenPhone">
+    <input type="hidden" name="Time" id="hiddenTime">
+</form>
+<iframe name="hidden_iframe" style="display:none;"></iframe>
+
+<nav>
+    <a onclick="showView('dashboard')">Monitor</a>
+    <a onclick="showView('history')">History</a>
+    <a onclick="showView('family')">Family Sync</a>
+    <a onclick="showView('survey')">Feedback</a>
+</nav>
+
+<div id="dashboard" class="container active-view">
+    <div class="hub-display">
+        <h3>Live Inventory Status</h3>
+        <div class="grid" id="sectionGrid"></div>
+    </div>
+    <div class="ui-row">
+        <div class="panel">
+            <h3>Update Medicine Unit</h3>
+            <select id="selIdx"></select>
+            <input type="text" id="newName" placeholder="Medicine Name">
+            <input type="number" id="newCount" placeholder="Refill Count">
+            <button onclick="updateMed()">Sync to Hardware</button>
+        </div>
+        <div class="panel">
+            <h3>Schedule Alarm</h3>
+            <input type="time" id="alarmTime">
+            <button onclick="setAlarm()">Arm Reminder</button>
+            <p id="alarmStatus" style="font-size: 11px; color: #888; text-align: center; margin-top: 15px;"></p>
+        </div>
+    </div>
+</div>
+
+<div id="history" class="container">
+    <div class="panel">
+        <h3>Compliance Log</h3>
+        <table>
+            <thead><tr><th>Timestamp</th><th>Action Status</th><th>Recipient Notified</th></tr></thead>
+            <tbody id="historyBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="family" class="container">
+    <div class="panel" style="max-width: 550px; align-self: center;">
+        <h3>Family Emergency Link</h3>
+        <p style="font-size: 12px; color: #86868b;">Sync a mobile number to receive cloud notifications for every dose.</p>
+        <input type="text" id="famName" placeholder="Family Member Name">
+        <input type="tel" id="famPhone" placeholder="Mobile Number (e.g. +91...)">
+        <button onclick="saveFamily()">Save & Sync Contacts</button>
+        <p id="syncMsg" style="margin-top:15px; font-size:12px; color:var(--success);"></p>
+    </div>
+</div>
+
+<div id="survey" class="container">
+    <div class="panel" style="max-width: 550px; align-self: center;">
+        <h3>System Feedback</h3>
+        <p style="font-size: 13px; color: #86868b;">Admin: Ayushi Sharma</p>
+        <form action="https://formspree.io/f/PASTE_YOUR_ID_HERE" method="POST">
+            <input type="hidden" name="Admin" value="Ayushi Sharma">
+            <label>Interface Experience:</label>
+            <select name="UI_Review"><option>Modern/Premium</option><option>Functional</option><option>Needs Polish</option></select>
+            <textarea name="Comments" rows="4" placeholder="Suggestions for improvement..." required style="margin-top:15px;"></textarea>
+            <button type="submit">Submit Feedback to Admin</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // State Logic
+    let inventory = [12, 5, 0, 8, 3, 1];
+    let names = ["Aspirin", "Vitamin D", "Asthma Med", "B-Complex", "Iron", "Calcium"];
+    let familyData = { name: "Not Set", phone: "" };
+    let audioCtx, melodyInterval;
+
+    function showView(id) {
+        document.querySelectorAll('.container').forEach(c => c.classList.remove('active-view'));
+        document.getElementById(id).classList.add('active-view');
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('sectionGrid');
+        grid.innerHTML = '';
+        for(let i=0; i<6; i++) {
+            const isEmpty = inventory[i] <= 0;
+            grid.innerHTML += `
+                <div class="section">
+                    <div class="led ${isEmpty ? 'led-red' : 'led-green'}"></div>
+                    <div style="font-weight:600; color:var(--accent);">${names[i]}</div>
+                    <div style="font-size:11px; opacity:0.6;">QTY: ${inventory[i]}</div>
+                </div>`;
+        }
+    }
+
+    function updateMed() {
+        const idx = document.getElementById('selIdx').value;
+        const n = document.getElementById('newName').value;
+        const c = document.getElementById('newCount').value;
+        if(n) names[idx] = n;
+        if(c !== "") inventory[idx] = parseInt(c);
+        renderGrid();
+    }
+
+    function setAlarm() {
+        const t = document.getElementById('alarmTime').value;
+        if(!t) return;
+        document.getElementById('alarmStatus').innerText = "System Armed: " + t;
+        setTimeout(() => {
+            document.getElementById('alarmBanner').style.display = 'block';
+            playFurElise();
+        }, 2500);
+    }
+
+    function medicationEvent(status) {
+        const time = new Date().toLocaleString();
+        
+        // Backend Notification Trigger
+        document.getElementById('hiddenAction').value = "Patient has " + status + " medication.";
+        document.getElementById('hiddenPhone').value = familyData.phone || "No Number Set";
+        document.getElementById('hiddenTime').value = time;
+        document.getElementById('notifyForm').submit();
+
+        // UI Updates
+        const entry = `<tr><td>${time}</td><td class="${status === 'Taken' ? 'log-taken' : 'log-skipped'}">${status}</td><td>${familyData.phone || 'N/A'}</td></tr>`;
+        document.getElementById('historyBody').innerHTML = entry + document.getElementById('historyBody').innerHTML;
+        
+        alert(`Notification: ${status} status sent to ${familyData.name}'s number.`);
+        stopAlarm();
+    }
+
+    function stopAlarm() {
+        document.getElementById('alarmBanner').style.display = 'none';
+        if(melodyInterval) clearInterval(melodyInterval);
+    }
+
+    function saveFamily() {
+        familyData.name = document.getElementById('famName').value;
+        familyData.phone = document.getElementById('famPhone').value;
+        document.getElementById('syncMsg').innerText = "✅ Devices synced with " + familyData.name;
+    }
+
+    function playFurElise() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [659.25, 622.25, 659.25, 622.25, 659.25, 493.88, 587.33, 523.25, 440.00];
+        let cur = 0;
+        melodyInterval = setInterval(() => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.value = notes[cur];
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+            cur = (cur + 1) % notes.length;
+        }, 300);
+    }
+
+    const sel = document.getElementById('selIdx');
+    for(let i=0; i<6; i++) sel.innerHTML += `<option value="${i}">Medicine Unit ${i+1}</option>`;
+    renderGrid();
+</script>
+
+</body>
+</html>
