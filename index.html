@@ -116,7 +116,7 @@
 <nav>
     <a onclick="showView('dashboard')">Monitor</a>
     <a onclick="showView('history')">History</a>
-    <a onclick="showView('family')">Family Sync</a>
+    <a onclick="showView('family')">Patient Sync</a>
     <a onclick="showView('survey')">Feedback</a>
 </nav>
 
@@ -154,9 +154,9 @@
 
 <div id="family" class="container">
     <div class="panel" style="max-width: 550px; align-self: center;">
-        <h3>Family Emergency Link</h3>
+        <h3>Patient's information</h3>
         <p style="font-size: 12px; color: #86868b;">Sync a mobile number to receive cloud notifications for every dose.</p>
-        <input type="text" id="famName" placeholder="Family Member Name">
+        <input type="text" id="famName" placeholder="Patient's Name">
         <input type="tel" id="famPhone" placeholder="Mobile Number (e.g. +91...)">
         <button onclick="saveFamily()">Save & Sync Contacts</button>
         <p id="syncMsg" style="margin-top:15px; font-size:12px; color:var(--success);"></p>
